@@ -1,68 +1,43 @@
-# config-conflict
+# Config Conflict Reproducer
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Reproducer for observed issue leading to https://quarkusio.zulipchat.com/#narrow/channel/187030-users/topic/Pass.20quarkus.2Eclass-loading.2Eremoved-resources.20to.20Maven.20plugin/with/573687608
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Prerequisites
 
-## Running the application in dev mode
+- JDK 17
+- Quarkus 3.27.2
 
-You can run your application in dev mode that enables live coding using:
+## Project Structure
 
-```shell script
-./mvnw quarkus:dev
+This is a multi-module Maven project:
+
+- **core** - Library module with its own `application.yml` (`greeting.message: "core"`)
+- **app** - Application module that depends on core, with its own `application.yml` (`greeting.message: "app"`)
+
+## Steps to Reproduce
+
+1. Build and install all modules:
+
+```bash
+./mvnw clean install
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+2. Run the uber jar:
 
-## Packaging and running the application
-
-The application can be packaged using:
-
-```shell script
-./mvnw package
+```bash
+java -jar app/target/config-conflict-app-1.0-SNAPSHOT.jar
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+3. Call the endpoint:
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+```bash
+curl http://localhost:8080/greetings
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+**Expected:** `app`
 
-## Creating a native executable
+**Actual:** `core`
 
-You can create a native executable using:
+## Issue
 
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/config-conflict-1.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- YAML Configuration ([guide](https://quarkus.io/guides/config-yaml)): Use YAML to configure your Quarkus application
-
-## Provided Code
-
-### YAML Config
-
-Configure your application with YAML
-
-[Related guide section...](https://quarkus.io/guides/config-reference#configuration-examples)
-
-The Quarkus application configuration is located in `src/main/resources/application.yml`.
+When building an uber jar, both `application.yml` files from the core and app modules are included. The core module's configuration takes precedence over the app module's configuration, resulting in the wrong value being returned.
